@@ -1,7 +1,7 @@
 using Domain.Entities;
 using FluentAssertions;
 using Infrastructure.Data;
-using Infrastructure.IntegrationTests.Fixtures;
+using IntegrationTests.Common.Fixtures;
 using Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 

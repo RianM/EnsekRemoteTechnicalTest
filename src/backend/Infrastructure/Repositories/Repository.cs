@@ -11,6 +11,11 @@ public class Repository<T>(ApplicationDbContext context) : IRepository<T>
     protected readonly ApplicationDbContext _context = context;
     protected readonly DbSet<T> _dbSet = context.Set<T>();
 
+    public virtual async Task<T?> GetByIdAsync(int id)
+    {
+        return await _dbSet.FindAsync(id);
+    }
+    
     public virtual async Task<IEnumerable<T>> GetAllAsync()
     {
         return await _dbSet.ToListAsync();

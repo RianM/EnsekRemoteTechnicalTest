@@ -1,8 +1,9 @@
 using Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
+using Xunit;
 
-namespace Infrastructure.IntegrationTests.Fixtures;
+namespace IntegrationTests.Common.Fixtures;
 
 public class PostgreSqlTestFixture : IAsyncLifetime
 {
@@ -16,6 +17,8 @@ public class PostgreSqlTestFixture : IAsyncLifetime
             .WithPassword("testpass")
             .Build();
     }
+
+    public string ConnectionString => _container.GetConnectionString();
 
     public async Task InitializeAsync()
     {
