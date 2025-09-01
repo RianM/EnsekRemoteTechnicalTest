@@ -16,7 +16,7 @@
 
 2. **Run the backend API**
    ```bash
-   dotnet run --project src/backend/api
+   dotnet run --project src/backend/Api
    ```
 
 3. **Run the frontend**
