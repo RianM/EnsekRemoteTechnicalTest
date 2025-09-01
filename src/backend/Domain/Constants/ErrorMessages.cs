@@ -15,7 +15,7 @@ public static class ErrorMessages
         public const string ValueOutOfRange = "Reading value must be between 0 and 99999 (NNNNN format)";
         public const string AccountNotFound = "Account with AccountId {0} not found";
         public const string DuplicateEntry = "Duplicate meter reading entry (same AccountId, DateTime, and Value)";
-        public const string ReadingTooOld = "New reading date ({0}) must be newer than existing latest reading ({1})";
+        public const string ReadingTooOld = "New reading date ({0}) must be newer than existing latest reading";
         public const string DatabaseError = "Database error: {0}";
     }
     

@@ -31,8 +31,6 @@ public class MeterReadingServiceTests
         _fixture = new Fixture();
     }
 
-    #region GetAllMeterReadingsAsync Tests
-
     [Fact]
     public async Task GetAllMeterReadingsAsync_ReturnsAllReadings()
     {
@@ -68,10 +66,6 @@ public class MeterReadingServiceTests
         _mockRepository.Verify(x => x.GetAllAsync(), Times.Once);
     }
 
-    #endregion
-
-    #region ProcessCsvMeterReadingsAsync Tests
-
     [Fact]
     public async Task ProcessCsvMeterReadingsAsync_WithValidData_ReturnsSuccessResults()
     {
@@ -86,13 +80,13 @@ public class MeterReadingServiceTests
         };
 
         _mockCsvReader.Setup(x => x.ReadAsync(It.IsAny<Stream>()))
-                     .ReturnsAsync(new CsvReadResult<CsvMeterReadingRowDto>
-                     {
-                         Records = { csvRecord }
-                     });
+            .ReturnsAsync(new CsvReadResult<CsvMeterReadingRowDto>
+            {
+                Records = { csvRecord }
+            });
 
         _mockValidator.Setup(x => x.ValidateAsync(csvRecord, default))
-                     .ReturnsAsync(new ValidationResult());
+            .ReturnsAsync(new ValidationResult());
 
         var savedEntity = new MeterReading
         {
@@ -102,7 +96,7 @@ public class MeterReadingServiceTests
         };
 
         _mockRepository.Setup(x => x.AddAsync(It.IsAny<MeterReading>()))
-                      .ReturnsAsync(savedEntity);
+            .ReturnsAsync(savedEntity);
 
         // Act
         var result = await _service.ProcessCsvMeterReadingsAsync(csvFile);
@@ -130,17 +124,17 @@ public class MeterReadingServiceTests
         };
 
         _mockCsvReader.Setup(x => x.ReadAsync(It.IsAny<Stream>()))
-                     .ReturnsAsync(new CsvReadResult<CsvMeterReadingRowDto>
-                     {
-                         Records = { csvRecord }
-                     });
+            .ReturnsAsync(new CsvReadResult<CsvMeterReadingRowDto>
+            {
+                Records = { csvRecord }
+            });
 
         var validationFailures = new List<ValidationFailure>
         {
             new ValidationFailure("AccountId", "Account not found")
         };
         _mockValidator.Setup(x => x.ValidateAsync(csvRecord, default))
-                     .ReturnsAsync(new ValidationResult(validationFailures));
+            .ReturnsAsync(new ValidationResult(validationFailures));
 
         // Act
         var result = await _service.ProcessCsvMeterReadingsAsync(csvFile);
@@ -169,10 +163,10 @@ public class MeterReadingServiceTests
         };
 
         _mockCsvReader.Setup(x => x.ReadAsync(It.IsAny<Stream>()))
-                     .ReturnsAsync(new CsvReadResult<CsvMeterReadingRowDto>
-                     {
-                         Errors = { csvError }
-                     });
+            .ReturnsAsync(new CsvReadResult<CsvMeterReadingRowDto>
+            {
+                Errors = { csvError }
+            });
 
         // Act
         var result = await _service.ProcessCsvMeterReadingsAsync(csvFile);
@@ -185,21 +179,15 @@ public class MeterReadingServiceTests
         _mockValidator.Verify(x => x.ValidateAsync(It.IsAny<CsvMeterReadingRowDto>(), default), Times.Never);
     }
 
-    #endregion
-
-    #region Helper Methods
-
     private static IFormFile CreateMockCsvFile(string content)
     {
         var mockFile = new Mock<IFormFile>();
         var stream = new MemoryStream(Encoding.UTF8.GetBytes(content));
-        
+
         mockFile.Setup(f => f.OpenReadStream()).Returns(stream);
         mockFile.Setup(f => f.FileName).Returns("test.csv");
         mockFile.Setup(f => f.Length).Returns(content.Length);
-        
+
         return mockFile.Object;
     }
-
-    #endregion
 }

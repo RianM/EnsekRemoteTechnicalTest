@@ -1,9 +1,14 @@
 namespace Application.DTOs;
 
-public class CsvMeterReadingRowDto
+public class CsvMeterReadingRowDto : IRowNumber
 {
     public int AccountId { get; set; }
     public DateTime MeterReadingDateTime { get; set; }
     public int MeterReadValue { get; set; }
+    public int RowNumber { get; set; }
+}
+
+public interface IRowNumber
+{
     public int RowNumber { get; set; }
 }

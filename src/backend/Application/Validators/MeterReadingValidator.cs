@@ -7,15 +7,12 @@ namespace Application.Validators;
 
 public class MeterReadingValidator : AbstractValidator<CsvMeterReadingRowDto>
 {
-    private readonly IAccountRepository _accountRepository;
-    private readonly IMeterReadingRepository _meterReadingRepository;
-
     public MeterReadingValidator(
         IAccountRepository accountRepository,
         IMeterReadingRepository meterReadingRepository)
     {
-        _accountRepository = accountRepository;
-        _meterReadingRepository = meterReadingRepository;
+        var accountRepository1 = accountRepository;
+        var meterReadingRepository1 = meterReadingRepository;
 
         RuleFor(x => x.AccountId)
             .GreaterThan(0)
@@ -26,18 +23,18 @@ public class MeterReadingValidator : AbstractValidator<CsvMeterReadingRowDto>
             .WithMessage(ErrorMessages.MeterReading.ValueOutOfRange);
 
         RuleFor(x => x.AccountId)
-            .MustAsync(async (accountId, cancellation) =>
+            .MustAsync(async (accountId, _) =>
             {
-                var account = await _accountRepository.GetByIdAsync(accountId);
+                var account = await accountRepository1.GetByIdAsync(accountId);
                 return account != null;
             })
             .WithMessage(x => string.Format(ErrorMessages.MeterReading.AccountNotFound, x.AccountId))
             .When(x => x.AccountId > 0);
 
         RuleFor(x => x)
-            .MustAsync(async (reading, cancellation) =>
+            .MustAsync(async (reading, _) =>
             {
-                var isDuplicate = await _meterReadingRepository.ExistsByAccountIdAndDateTimeAndValueAsync(
+                var isDuplicate = await meterReadingRepository1.ExistsByAccountIdAndDateTimeAndValueAsync(
                     reading.AccountId, reading.MeterReadingDateTime, reading.MeterReadValue);
                 return !isDuplicate;
             })
@@ -45,18 +42,13 @@ public class MeterReadingValidator : AbstractValidator<CsvMeterReadingRowDto>
             .When(x => x.AccountId > 0);
 
         RuleFor(x => x)
-            .MustAsync(async (reading, cancellation) =>
+            .MustAsync(async (reading, _) =>
             {
-                var latestReading = await _meterReadingRepository.GetLatestByAccountIdAsync(reading.AccountId);
+                var latestReading = await meterReadingRepository1.GetLatestByAccountIdAsync(reading.AccountId);
                 return latestReading == null || reading.MeterReadingDateTime > latestReading.MeterReadingDateTime;
             })
-            .WithMessage(x =>
-            {
-                var latestReading = _meterReadingRepository.GetLatestByAccountIdAsync(x.AccountId).Result;
-                return string.Format(ErrorMessages.MeterReading.ReadingTooOld,
-                    x.MeterReadingDateTime.ToString("dd/MM/yyyy HH:mm"),
-                    latestReading?.MeterReadingDateTime.ToString("dd/MM/yyyy HH:mm"));
-            })
+            .WithMessage(x => string.Format(ErrorMessages.MeterReading.ReadingTooOld,
+                x.MeterReadingDateTime.ToString("dd/MM/yyyy HH:mm")))
             .When(x => x.AccountId > 0);
     }
 }

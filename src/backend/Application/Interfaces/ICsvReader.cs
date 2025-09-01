@@ -2,7 +2,7 @@ using Application.DTOs;
 
 namespace Application.Interfaces;
 
-public interface ICsvReader<T> where T : class
+public interface ICsvReader<T> where T : IRowNumber
 {
     Task<CsvReadResult<T>> ReadAsync(Stream csvStream);
 }
