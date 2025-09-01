@@ -5,6 +5,7 @@ using Domain.Repositories;
 using Infrastructure.Data;
 using Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
+using FluentValidation;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,8 +20,11 @@ builder.Services.AddScoped<IMeterReadingRepository, MeterReadingRepository>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IMeterReadingService, MeterReadingService>();
 
-// Validator Registration
-builder.Services.AddScoped<IMeterReadingValidator, Application.Validators.MeterReadingValidator>();
+// CSV Processing Services
+builder.Services.AddScoped<ICsvReader<Application.DTOs.CsvMeterReadingRowDto>, CsvReader<Application.DTOs.CsvMeterReadingRowDto>>();
+
+// FluentValidation
+builder.Services.AddValidatorsFromAssemblyContaining<Application.Validators.MeterReadingValidator>();
 
 // CORS Configuration
 builder.Services.Configure<CorsOptions>(builder.Configuration.GetSection(CorsOptions.SectionName));

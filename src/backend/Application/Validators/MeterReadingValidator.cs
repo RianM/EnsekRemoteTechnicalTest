@@ -1,145 +1,62 @@
+using FluentValidation;
 using Application.DTOs;
-using Application.Interfaces;
 using Domain.Constants;
-using System.Globalization;
 using Domain.Repositories;
 
 namespace Application.Validators;
 
-public class MeterReadingValidator(
-    IAccountRepository accountRepository,
-    IMeterReadingRepository meterReadingRepository) : IMeterReadingValidator
+public class MeterReadingValidator : AbstractValidator<CsvMeterReadingRowDto>
 {
-    public (CsvMeterReadingRowDto? Data, bool HasValidationErrors, List<MeterReadingUploadErrorDto> Errors) 
-        ParseCsvRow(string line, int rowNumber)
+    private readonly IAccountRepository _accountRepository;
+    private readonly IMeterReadingRepository _meterReadingRepository;
+
+    public MeterReadingValidator(
+        IAccountRepository accountRepository,
+        IMeterReadingRepository meterReadingRepository)
     {
-        var errors = new List<MeterReadingUploadErrorDto>();
-        var parts = line.Split(',');
+        _accountRepository = accountRepository;
+        _meterReadingRepository = meterReadingRepository;
 
-        if (parts.Length < ValidationConstants.Csv.MeterReadingMinimumColumns)
-        {
-            errors.Add(new MeterReadingUploadErrorDto
+        RuleFor(x => x.AccountId)
+            .GreaterThan(0)
+            .WithMessage(ErrorMessages.MeterReading.InvalidAccountIdFormat);
+
+        RuleFor(x => x.MeterReadValue)
+            .InclusiveBetween(ValidationConstants.MeterReading.MinValue, ValidationConstants.MeterReading.MaxValue)
+            .WithMessage(ErrorMessages.MeterReading.ValueOutOfRange);
+
+        RuleFor(x => x.AccountId)
+            .MustAsync(async (accountId, cancellation) =>
             {
-                Row = rowNumber + 1, // +1 because we skipped header
-                Error = ErrorMessages.CsvProcessing.InsufficientColumns,
-                RawData = line
-            });
-            return (null, true, errors);
-        }
+                var account = await _accountRepository.GetByIdAsync(accountId);
+                return account != null;
+            })
+            .WithMessage(x => string.Format(ErrorMessages.MeterReading.AccountNotFound, x.AccountId))
+            .When(x => x.AccountId > 0);
 
-        // Parse AccountId
-        if (!int.TryParse(parts[0]?.Trim(), out var accountId))
-        {
-            errors.Add(new MeterReadingUploadErrorDto
+        RuleFor(x => x)
+            .MustAsync(async (reading, cancellation) =>
             {
-                Row = rowNumber + 1,
-                Error = ErrorMessages.MeterReading.InvalidAccountIdFormat,
-                RawData = line
-            });
-        }
+                var isDuplicate = await _meterReadingRepository.ExistsByAccountIdAndDateTimeAndValueAsync(
+                    reading.AccountId, reading.MeterReadingDateTime, reading.MeterReadValue);
+                return !isDuplicate;
+            })
+            .WithMessage(ErrorMessages.MeterReading.DuplicateEntry)
+            .When(x => x.AccountId > 0);
 
-        // Parse MeterReadingDateTime
-        DateTime meterReadingDateTime = default;
-        var dateTimeString = parts[1]?.Trim();
-        if (string.IsNullOrEmpty(dateTimeString) || 
-            !DateTime.TryParseExact(dateTimeString, ValidationConstants.MeterReading.DateTimeFormats, 
-                                   CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out meterReadingDateTime))
-        {
-            errors.Add(new MeterReadingUploadErrorDto
+        RuleFor(x => x)
+            .MustAsync(async (reading, cancellation) =>
             {
-                Row = rowNumber + 1,
-                AccountId = accountId > 0 ? accountId : null,
-                Error = ErrorMessages.MeterReading.InvalidDateTimeFormat,
-                RawData = line
-            });
-        }
-
-        // Parse MeterReadValue
-        if (!int.TryParse(parts[2]?.Trim(), out var meterReadValue))
-        {
-            errors.Add(new MeterReadingUploadErrorDto
+                var latestReading = await _meterReadingRepository.GetLatestByAccountIdAsync(reading.AccountId);
+                return latestReading == null || reading.MeterReadingDateTime > latestReading.MeterReadingDateTime;
+            })
+            .WithMessage(x =>
             {
-                Row = rowNumber + 1,
-                AccountId = accountId > 0 ? accountId : null,
-                Error = ErrorMessages.MeterReading.InvalidMeterValueFormat,
-                RawData = line
-            });
-        }
-
-        if (errors.Any())
-        {
-            return (null, true, errors);
-        }
-
-        return (new CsvMeterReadingRowDto
-        {
-            AccountId = accountId,
-            MeterReadingDateTime = meterReadingDateTime,
-            MeterReadValue = meterReadValue,
-            RowNumber = rowNumber + 1
-        }, false, errors);
-    }
-
-    public async Task<(bool HasErrors, List<MeterReadingUploadErrorDto> Errors)> 
-        ValidateMeterReadingRowAsync(CsvMeterReadingRowDto row, int rowNumber)
-    {
-        var errors = new List<MeterReadingUploadErrorDto>();
-
-        // Validate reading value format (NNNNN - 5 digits, 0-99999)
-        if (row.MeterReadValue < ValidationConstants.MeterReading.MinValue || row.MeterReadValue > ValidationConstants.MeterReading.MaxValue)
-        {
-            errors.Add(new MeterReadingUploadErrorDto
-            {
-                Row = rowNumber + 1,
-                AccountId = row.AccountId,
-                Error = ErrorMessages.MeterReading.ValueOutOfRange,
-                RawData = $"{row.AccountId},{row.MeterReadingDateTime:dd/MM/yyyy HH:mm},{row.MeterReadValue}"
-            });
-        }
-
-        // Validate account exists
-        var accountExists = await accountRepository.GetByIdAsync(row.AccountId);
-        if (accountExists == null)
-        {
-            errors.Add(new MeterReadingUploadErrorDto
-            {
-                Row = rowNumber + 1,
-                AccountId = row.AccountId,
-                Error = string.Format(ErrorMessages.MeterReading.AccountNotFound, row.AccountId),
-                RawData = $"{row.AccountId},{row.MeterReadingDateTime:dd/MM/yyyy HH:mm},{row.MeterReadValue}"
-            });
-        }
-
-        // Check for duplicate entry (same AccountId, DateTime, and Value)
-        var isDuplicate = await meterReadingRepository.ExistsByAccountIdAndDateTimeAndValueAsync(
-            row.AccountId, row.MeterReadingDateTime, row.MeterReadValue);
-        
-        if (isDuplicate)
-        {
-            errors.Add(new MeterReadingUploadErrorDto
-            {
-                Row = rowNumber + 1,
-                AccountId = row.AccountId,
-                Error = ErrorMessages.MeterReading.DuplicateEntry,
-                RawData = $"{row.AccountId},{row.MeterReadingDateTime:dd/MM/yyyy HH:mm},{row.MeterReadValue}"
-            });
-        }
-
-        // Check if new reading is older than existing latest reading
-        var latestReading = await meterReadingRepository.GetLatestByAccountIdAsync(row.AccountId);
-        if (latestReading != null && row.MeterReadingDateTime <= latestReading.MeterReadingDateTime)
-        {
-            errors.Add(new MeterReadingUploadErrorDto
-            {
-                Row = rowNumber + 1,
-                AccountId = row.AccountId,
-                Error = string.Format(ErrorMessages.MeterReading.ReadingTooOld, 
-                    row.MeterReadingDateTime.ToString("dd/MM/yyyy HH:mm"), 
-                    latestReading.MeterReadingDateTime.ToString("dd/MM/yyyy HH:mm")),
-                RawData = $"{row.AccountId},{row.MeterReadingDateTime:dd/MM/yyyy HH:mm},{row.MeterReadValue}"
-            });
-        }
-
-        return (errors.Any(), errors);
+                var latestReading = _meterReadingRepository.GetLatestByAccountIdAsync(x.AccountId).Result;
+                return string.Format(ErrorMessages.MeterReading.ReadingTooOld,
+                    x.MeterReadingDateTime.ToString("dd/MM/yyyy HH:mm"),
+                    latestReading?.MeterReadingDateTime.ToString("dd/MM/yyyy HH:mm"));
+            })
+            .When(x => x.AccountId > 0);
     }
 }
