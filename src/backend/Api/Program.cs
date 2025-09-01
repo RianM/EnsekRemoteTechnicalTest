@@ -1,16 +1,48 @@
 using Api.Options;
+using Api.Services;
 using Application.Interfaces;
 using Application.Services;
 using Domain.Repositories;
 using Infrastructure.Data;
 using Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using FluentValidation;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// JWT Configuration
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()!;
+
+// Authentication
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtOptions.Issuer,
+            ValidAudience = jwtOptions.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey)),
+            ClockSkew = TimeSpan.Zero
+        };
+    });
+
+// Authorization
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("EnergyCompanyAccountManager", policy =>
+        policy.RequireRole("Energy Company Account Manager"));
+});
 
 // Repository Registration
 builder.Services.AddScoped<IAccountRepository, AccountRepository>();
@@ -19,6 +51,7 @@ builder.Services.AddScoped<IMeterReadingRepository, MeterReadingRepository>();
 // Service Registration
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IMeterReadingService, MeterReadingService>();
+builder.Services.AddScoped<ITokenService, TokenService>();
 
 // CSV Processing Services
 builder.Services.AddScoped<ICsvReader<Application.DTOs.CsvMeterReadingRowDto>, CsvReader<Application.DTOs.CsvMeterReadingRowDto>>();
@@ -63,6 +96,7 @@ app.UseHttpsRedirection();
 
 app.UseCors("AllowFrontend");
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

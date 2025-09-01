@@ -1,21 +1,14 @@
+import apiClient from './apiClient';
 import type { AuthTokenResponse } from '../types';
 
 export const authService = {
   getAnonymousToken: async (): Promise<AuthTokenResponse> => {
-    // Stubbed successful response (backend auth not implemented yet)
-    return Promise.resolve({
-      token: `stub-anonymous-token-${Date.now()}`,
-      role: 'anonymous',
-      message: 'Authenticated as anonymous (stub)'
-    });
+    const response = await apiClient.post('/auth/token/anonymous');
+    return response.data;
   },
 
   getManagerToken: async (): Promise<AuthTokenResponse> => {
-    // Stubbed successful response (backend auth not implemented yet)
-    return Promise.resolve({
-      token: `stub-manager-token-${Date.now()}`,
-      role: 'manager',
-      message: 'Authenticated as manager (stub)'
-    });
+    const response = await apiClient.post('/auth/token/manager');
+    return response.data;
   },
 };

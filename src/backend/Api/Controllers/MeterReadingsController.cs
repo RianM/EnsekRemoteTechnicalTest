@@ -1,5 +1,6 @@
 using Application.DTOs;
 using Application.Interfaces;
+using Api.Authorization;
 using Api.Extensions;
 using Domain.Constants;
 using Microsoft.AspNetCore.Mvc;
@@ -18,6 +19,7 @@ public class MeterReadingsController(IMeterReadingService meterReadingService) :
     }
 
     [HttpPost("meter-reading-uploads")]
+    [EnergyCompanyManager]
     public async Task<ActionResult<MeterReadingUploadResultDto>> UploadMeterReadingsCsv([FromForm] CsvMeterReadingUploadDto uploadDto)
     {
         if (uploadDto.CsvFile.Length == 0)

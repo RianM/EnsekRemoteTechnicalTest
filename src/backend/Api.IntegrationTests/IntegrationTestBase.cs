@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Infrastructure.Data;
 using IntegrationTests.Common.Fixtures;
+using System.Text;
+using System.Text.Json;
 
 namespace Api.IntegrationTests;
 
@@ -53,5 +55,46 @@ public class IntegrationTestBase : IAsyncLifetime
         await _databaseFixture.DisposeAsync();
         await Factory.DisposeAsync();
         HttpClient.Dispose();
+    }
+
+    protected async Task<string> GetManagerTokenAsync()
+    {
+        var response = await HttpClient.PostAsync("/api/auth/token/manager", null);
+        response.EnsureSuccessStatusCode();
+        
+        var content = await response.Content.ReadAsStringAsync();
+        var tokenResponse = JsonSerializer.Deserialize<TokenResponse>(content, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+        
+        return tokenResponse!.Token;
+    }
+
+    protected async Task<string> GetAnonymousTokenAsync()
+    {
+        var response = await HttpClient.PostAsync("/api/auth/token/anonymous", null);
+        response.EnsureSuccessStatusCode();
+        
+        var content = await response.Content.ReadAsStringAsync();
+        var tokenResponse = JsonSerializer.Deserialize<TokenResponse>(content, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+        
+        return tokenResponse!.Token;
+    }
+
+    protected void SetAuthorizationHeader(string token)
+    {
+        HttpClient.DefaultRequestHeaders.Authorization = 
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+    }
+
+    private class TokenResponse
+    {
+        public string Token { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
     }
 }

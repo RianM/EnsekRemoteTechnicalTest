@@ -8,9 +8,72 @@ namespace Api.IntegrationTests.Controllers;
 public class MeterReadingsControllerTests : IntegrationTestBase
 {
     [Fact]
+    public async Task GetMeterReadings_ShouldReturnAllMeterReadings_WhenCalledWithoutAuth()
+    {
+        // Act
+        var response = await HttpClient.GetAsync("/api/meterreadings");
+
+        // Assert
+        response.EnsureSuccessStatusCode();
+        var content = await response.Content.ReadAsStringAsync();
+        var meterReadings = JsonSerializer.Deserialize<List<MeterReadingDto>>(content, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+
+        Assert.NotNull(meterReadings);
+        Assert.All(meterReadings, reading =>
+        {
+            Assert.True(reading.AccountId > 0);
+            Assert.True(reading.MeterReadingDateTime > DateTime.MinValue);
+            Assert.True(reading.MeterReadValue >= 0);
+        });
+    }
+
+    [Fact]
+    public async Task UploadMeterReadingsCsv_ShouldRequireAuthentication_WhenNoTokenProvided()
+    {
+        // Arrange
+        var csvContent = "AccountId,MeterReadingDateTime,MeterReadValue\n2344,22/04/2019 09:24,01002\n";
+        var formContent = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(csvContent));
+        fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/csv");
+        formContent.Add(fileContent, "CsvFile", "test.csv");
+
+        // Act
+        var response = await HttpClient.PostAsync("/api/meterreadings/meter-reading-uploads", formContent);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UploadMeterReadingsCsv_ShouldReturnForbidden_WhenAnonymousTokenUsed()
+    {
+        // Arrange
+        var token = await GetAnonymousTokenAsync();
+        SetAuthorizationHeader(token);
+
+        var csvContent = "AccountId,MeterReadingDateTime,MeterReadValue\n2344,22/04/2019 09:24,01002\n";
+        var formContent = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(csvContent));
+        fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/csv");
+        formContent.Add(fileContent, "CsvFile", "test.csv");
+
+        // Act
+        var response = await HttpClient.PostAsync("/api/meterreadings/meter-reading-uploads", formContent);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task UploadMeterReadingsCsv_ShouldReturnBadRequest_WhenNoFileProvided()
     {
         // Arrange
+        var token = await GetManagerTokenAsync();
+        SetAuthorizationHeader(token);
+
         var formContent = new MultipartFormDataContent();
 
         // Act
@@ -24,6 +87,9 @@ public class MeterReadingsControllerTests : IntegrationTestBase
     public async Task UploadMeterReadingsCsv_ShouldReturnBadRequest_WhenInvalidFileTypeProvided()
     {
         // Arrange
+        var token = await GetManagerTokenAsync();
+        SetAuthorizationHeader(token);
+
         var txtContent = "This is not a CSV file";
         var formContent = new MultipartFormDataContent();
         var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(txtContent));
@@ -41,6 +107,9 @@ public class MeterReadingsControllerTests : IntegrationTestBase
     public async Task UploadMeterReadingsCsv_ShouldProcessValidCsvFile_WhenManagerTokenUsed()
     {
         // Arrange
+        var token = await GetManagerTokenAsync();
+        SetAuthorizationHeader(token);
+
         var csvContent = "AccountId,MeterReadingDateTime,MeterReadValue\n2344,22/04/2019 09:24,01002\n2233,22/04/2019 12:25,323\n";
         var formContent = new MultipartFormDataContent();
         var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(csvContent));
