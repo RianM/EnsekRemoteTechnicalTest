@@ -1,0 +1,4 @@
+AccountId,MeterReadingDateTime,MeterReadValue,
+invalid,22/04/2019 09:24,45522,
+2233,invalid_date,323,
+8766,22/04/2019 12:25,invalid_value,
