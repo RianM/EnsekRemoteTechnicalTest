@@ -230,7 +230,7 @@ namespace Infrastructure.Migrations
 
                     b.ToTable("MeterReadings", null, t =>
                         {
-                            t.HasCheckConstraint("CK_MeterReadings_MeterReadValue", "MeterReadValue >= 0 AND MeterReadValue <= 99999");
+                            t.HasCheckConstraint("CK_MeterReadings_MeterReadValue", "\"MeterReadValue\" >= 0 AND \"MeterReadValue\" <= 99999");
                         });
                 });
 

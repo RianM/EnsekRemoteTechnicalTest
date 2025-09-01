@@ -10,6 +10,13 @@ namespace Api.Controllers;
 [Route("api/[controller]")]
 public class MeterReadingsController(IMeterReadingService meterReadingService) : ControllerBase
 {
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<MeterReadingDto>>> GetMeterReadings()
+    {
+        var meterReadings = await meterReadingService.GetAllMeterReadingsAsync();
+        return Ok(meterReadings);
+    }
+
     [HttpPost("meter-reading-uploads")]
     public async Task<ActionResult<MeterReadingUploadResultDto>> UploadMeterReadingsCsv([FromForm] CsvMeterReadingUploadDto uploadDto)
     {

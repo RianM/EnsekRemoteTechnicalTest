@@ -14,12 +14,12 @@ public class MeterReadingService(
     IMeterReadingValidator validator)
     : IMeterReadingService
 {
-    /* TODO - Tests
-     * Validate Header is false
-     * Validate Header is true
-     * Process with valid rows
-     * Process with some valid and some invalid rows ( mock the validator )
-     */
+    public async Task<IEnumerable<MeterReadingDto>> GetAllMeterReadingsAsync()
+    {
+        var meterReadings = await meterReadingRepository.GetAllAsync();
+        return meterReadings.Select(meterReading => meterReading.ToDto());
+    }
+    
     public async Task<MeterReadingUploadResultDto> ProcessCsvMeterReadingsAsync(IFormFile csvFile)
     {
         var result = new MeterReadingUploadResultDto();

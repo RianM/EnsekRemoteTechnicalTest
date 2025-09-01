@@ -22,7 +22,7 @@ namespace Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_MeterReadings", x => new { x.AccountId, x.MeterReadingDateTime });
-                    table.CheckConstraint("CK_MeterReadings_MeterReadValue", "MeterReadValue >= 0 AND MeterReadValue <= 99999");
+                    table.CheckConstraint("CK_MeterReadings_MeterReadValue", "\"MeterReadValue\" >= 0 AND \"MeterReadValue\" <= 99999");
                     table.ForeignKey(
                         name: "FK_MeterReadings_Accounts_AccountId",
                         column: x => x.AccountId,
