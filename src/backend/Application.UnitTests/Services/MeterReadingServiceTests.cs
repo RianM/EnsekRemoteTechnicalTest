@@ -18,7 +18,7 @@ public class MeterReadingServiceTests
 {
     private readonly Mock<IMeterReadingRepository> _mockRepository;
     private readonly Mock<ICsvReader<CsvMeterReadingRowDto>> _mockCsvReader;
-    private readonly Mock<IValidator<CsvMeterReadingRowDto>> _mockValidator;
+    private readonly Mock<IBatchMeterReadingValidator> _mockBatchValidator;
     private readonly MeterReadingService _service;
     private readonly IFixture _fixture;
 
@@ -26,8 +26,8 @@ public class MeterReadingServiceTests
     {
         _mockRepository = new Mock<IMeterReadingRepository>();
         _mockCsvReader = new Mock<ICsvReader<CsvMeterReadingRowDto>>();
-        _mockValidator = new Mock<IValidator<CsvMeterReadingRowDto>>();
-        _service = new MeterReadingService(_mockRepository.Object, _mockCsvReader.Object, _mockValidator.Object);
+        _mockBatchValidator = new Mock<IBatchMeterReadingValidator>();
+        _service = new MeterReadingService(_mockRepository.Object, _mockCsvReader.Object, _mockBatchValidator.Object);
         _fixture = new Fixture();
     }
 
@@ -85,8 +85,11 @@ public class MeterReadingServiceTests
                 Records = { csvRecord }
             });
 
-        _mockValidator.Setup(x => x.ValidateAsync(csvRecord, default))
-            .ReturnsAsync(new ValidationResult());
+        _mockBatchValidator.Setup(x => x.ValidateAsync(It.IsAny<List<CsvMeterReadingRowDto>>()))
+            .ReturnsAsync(new Dictionary<CsvMeterReadingRowDto, ValidationResult>
+            {
+                { csvRecord, new ValidationResult() }
+            });
 
         var savedEntity = new MeterReading
         {
@@ -95,8 +98,8 @@ public class MeterReadingServiceTests
             MeterReadValue = 100
         };
 
-        _mockRepository.Setup(x => x.AddAsync(It.IsAny<MeterReading>()))
-            .ReturnsAsync(savedEntity);
+        _mockRepository.Setup(x => x.AddRangeAsync(It.IsAny<List<MeterReading>>()))
+            .ReturnsAsync(new List<MeterReading> { savedEntity });
 
         // Act
         var result = await _service.ProcessCsvMeterReadingsAsync(csvFile);
@@ -106,8 +109,8 @@ public class MeterReadingServiceTests
         result.Successful.Should().Be(1);
         result.Failed.Should().Be(0);
         result.SuccessfulReadings.Should().HaveCount(1);
-        _mockValidator.Verify(x => x.ValidateAsync(csvRecord, default), Times.Once);
-        _mockRepository.Verify(x => x.AddAsync(It.IsAny<MeterReading>()), Times.Once);
+        _mockBatchValidator.Verify(x => x.ValidateAsync(It.IsAny<List<CsvMeterReadingRowDto>>()), Times.Once);
+        _mockRepository.Verify(x => x.AddRangeAsync(It.IsAny<List<MeterReading>>()), Times.Once);
     }
 
     [Fact]
@@ -133,8 +136,11 @@ public class MeterReadingServiceTests
         {
             new ValidationFailure("AccountId", "Account not found")
         };
-        _mockValidator.Setup(x => x.ValidateAsync(csvRecord, default))
-            .ReturnsAsync(new ValidationResult(validationFailures));
+        _mockBatchValidator.Setup(x => x.ValidateAsync(It.IsAny<List<CsvMeterReadingRowDto>>()))
+            .ReturnsAsync(new Dictionary<CsvMeterReadingRowDto, ValidationResult>
+            {
+                { csvRecord, new ValidationResult(validationFailures) }
+            });
 
         // Act
         var result = await _service.ProcessCsvMeterReadingsAsync(csvFile);
@@ -146,7 +152,7 @@ public class MeterReadingServiceTests
         result.Errors.Should().HaveCount(1);
         result.Errors[0].Error.Should().Be("Account not found");
         result.Errors[0].Row.Should().Be(2);
-        _mockRepository.Verify(x => x.AddAsync(It.IsAny<MeterReading>()), Times.Never);
+        _mockRepository.Verify(x => x.AddRangeAsync(It.IsAny<List<MeterReading>>()), Times.Never);
     }
 
     [Fact]
@@ -176,7 +182,7 @@ public class MeterReadingServiceTests
         result.Errors.Should().HaveCount(1);
         result.Errors[0].Error.Should().Be("AccountId: Invalid format");
         result.Errors[0].Row.Should().Be(1);
-        _mockValidator.Verify(x => x.ValidateAsync(It.IsAny<CsvMeterReadingRowDto>(), default), Times.Never);
+        _mockBatchValidator.Verify(x => x.ValidateAsync(It.IsAny<List<CsvMeterReadingRowDto>>()), Times.Never);
     }
 
     private static IFormFile CreateMockCsvFile(string content)

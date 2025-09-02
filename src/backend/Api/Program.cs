@@ -56,8 +56,8 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 // CSV Processing Services
 builder.Services.AddScoped<ICsvReader<Application.DTOs.CsvMeterReadingRowDto>, CsvReader<Application.DTOs.CsvMeterReadingRowDto>>();
 
-// FluentValidation
-builder.Services.AddValidatorsFromAssemblyContaining<Application.Validators.MeterReadingValidator>();
+// Validation
+builder.Services.AddScoped<IBatchMeterReadingValidator, Application.Validators.BatchMeterReadingValidator>();
 
 // CORS Configuration
 builder.Services.Configure<CorsOptions>(builder.Configuration.GetSection(CorsOptions.SectionName));
